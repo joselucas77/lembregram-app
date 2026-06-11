@@ -17,14 +17,12 @@ export default function HomeScreen() {
   const [mensagem, setMensagem] = useState("");
   const [data, setData] = useState(new Date());
 
-  // Novos estados para controlar qual picker abrir
   const [showPicker, setShowPicker] = useState(false);
   const [pickerMode, setPickerMode] = useState<"date" | "time">("date");
   const [loading, setLoading] = useState(false);
 
   const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
-  // Função para abrir o picker correto
   const openPicker = (mode: "date" | "time") => {
     setPickerMode(mode);
     setShowPicker(true);
@@ -35,18 +33,12 @@ export default function HomeScreen() {
       setShowPicker(false);
     }
 
-    // Atualiza a data apenas se o usuário selecionou algo (event.type === 'set')
     if (event.type === "set" && selectedDate) {
       setData(selectedDate);
     }
   };
 
   const handleEnviarLembrete = async () => {
-    const timezoneOffsetEmMinutos = data.getTimezoneOffset();
-    const dataLocalComoUTC = new Date(
-      data.getTime() - timezoneOffsetEmMinutos * 60 * 1000,
-    );
-
     if (!mensagem.trim()) {
       Alert.alert("Atenção", "Por favor, digite a mensagem do seu lembrete.");
       return;
@@ -62,8 +54,8 @@ export default function HomeScreen() {
         },
         body: JSON.stringify({
           mensagem: mensagem.trim(),
-          // data_agendada: data.toISOString(),
-          data_agendada: dataLocalComoUTC.toISOString(),
+          // Envia a data no formato padrão UTC
+          data_agendada: data.toISOString(),
         }),
       });
 
@@ -117,7 +109,6 @@ export default function HomeScreen() {
 
           <Text style={styles.label}>Quando quer receber?</Text>
 
-          {/* Botões lado a lado para Data e Hora */}
           <View style={styles.dateRow}>
             <TouchableOpacity
               style={styles.dateButton}
@@ -139,7 +130,6 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* O picker agora usa a variável `pickerMode` no lugar de "datetime" fixo */}
           {showPicker && (
             <View>
               <DateTimePicker
