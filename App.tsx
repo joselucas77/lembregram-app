@@ -12,6 +12,7 @@ import {
   ScrollView,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import * as Haptics from "expo-haptics";
 
 export default function HomeScreen() {
   const [mensagem, setMensagem] = useState("");
@@ -40,6 +41,7 @@ export default function HomeScreen() {
 
   const handleEnviarLembrete = async () => {
     if (!mensagem.trim()) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert("Atenção", "Por favor, digite a mensagem do seu lembrete.");
       return;
     }
@@ -59,6 +61,8 @@ export default function HomeScreen() {
       });
 
       if (response.ok) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
         Alert.alert(
           "Sucesso 🎉",
           "Seu lembrete foi agendado e será enviado no Telegram!",
@@ -66,6 +70,8 @@ export default function HomeScreen() {
         setMensagem("");
         setData(new Date());
       } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
         const errorData = await response.json();
         Alert.alert(
           "Erro no Servidor",
@@ -73,6 +79,8 @@ export default function HomeScreen() {
         );
       }
     } catch (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
       Alert.alert(
         "Erro de Conexão",
         "Não foi possível se comunicar com a API da Vercel.",
