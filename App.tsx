@@ -54,7 +54,6 @@ export default function HomeScreen() {
         },
         body: JSON.stringify({
           mensagem: mensagem.trim(),
-          // Envia a data no formato padrão UTC
           data_agendada: data.toISOString(),
         }),
       });
