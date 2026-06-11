@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -13,16 +13,41 @@ import {
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as Haptics from "expo-haptics";
+import * as LocalAuthentication from "expo-local-authentication";
 
 export default function HomeScreen() {
   const [mensagem, setMensagem] = useState("");
   const [data, setData] = useState(new Date());
-
   const [showPicker, setShowPicker] = useState(false);
   const [pickerMode, setPickerMode] = useState<"date" | "time">("date");
   const [loading, setLoading] = useState(false);
+  const [autenticado, setAutenticado] = useState(false);
 
   const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
+  // Lógica de Biometria
+  const verificarBiometria = async () => {
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    if (!hasHardware) {
+      setAutenticado(true);
+      return;
+    }
+
+    const resultado = await LocalAuthentication.authenticateAsync({
+      promptMessage: "Autentique-se para acessar o LembreGram",
+      fallbackLabel: "Usar senha",
+    });
+
+    if (resultado.success) {
+      setAutenticado(true);
+    } else {
+      Alert.alert("Erro", "Autenticação falhou ou foi cancelada.");
+    }
+  };
+
+  useEffect(() => {
+    verificarBiometria();
+  }, []);
 
   const openPicker = (mode: "date" | "time") => {
     setPickerMode(mode);
@@ -30,30 +55,22 @@ export default function HomeScreen() {
   };
 
   const onChangeDate = (event: any, selectedDate?: Date) => {
-    if (Platform.OS === "android") {
-      setShowPicker(false);
-    }
-
-    if (event.type === "set" && selectedDate) {
-      setData(selectedDate);
-    }
+    if (Platform.OS === "android") setShowPicker(false);
+    if (event.type === "set" && selectedDate) setData(selectedDate);
   };
 
   const handleEnviarLembrete = async () => {
     if (!mensagem.trim()) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      Alert.alert("Atenção", "Por favor, digite a mensagem do seu lembrete.");
+      Alert.alert("Atenção", "Por favor, digite a mensagem.");
       return;
     }
 
     setLoading(true);
-
     try {
       const response = await fetch(API_URL as string, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mensagem: mensagem.trim(),
           data_agendada: data.toISOString(),
@@ -62,52 +79,47 @@ export default function HomeScreen() {
 
       if (response.ok) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-        Alert.alert(
-          "Sucesso 🎉",
-          "Seu lembrete foi agendado e será enviado no Telegram!",
-        );
+        Alert.alert("Sucesso 🎉", "Lembrete agendado no Telegram!");
         setMensagem("");
         setData(new Date());
       } else {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-
-        const errorData = await response.json();
-        Alert.alert(
-          "Erro no Servidor",
-          errorData.message || "Não foi possível salvar o lembrete.",
-        );
+        throw new Error("Erro no servidor");
       }
     } catch (error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-
-      Alert.alert(
-        "Erro de Conexão",
-        "Não foi possível se comunicar com a API da Vercel.",
-      );
+      Alert.alert("Erro", "Não foi possível conectar à API.");
     } finally {
       setLoading(false);
     }
   };
 
+  // Tela de Bloqueio (se não autenticado)
+  if (!autenticado) {
+    return (
+      <View style={styles.containerLock}>
+        <Text style={styles.logo}>LembreGram 🔒</Text>
+        <TouchableOpacity
+          style={styles.submitButton}
+          onPress={verificarBiometria}>
+          <Text style={styles.submitButtonText}>Tocar para Desbloquear</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // Tela Principal (após autenticação)
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContainer}
-        showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
         <Text style={styles.logo}>LembreGram</Text>
-        <Text style={styles.subtitle}>
-          Agende uma notificação para o seu Telegram
-        </Text>
+        <Text style={styles.subtitle}>Agende para o seu Telegram</Text>
 
         <View style={styles.card}>
           <Text style={styles.label}>O que você quer lembrar?</Text>
           <TextInput
             style={styles.input}
-            placeholder="Digite sua mensagem aqui..."
-            placeholderTextColor="#999"
             value={mensagem}
             onChangeText={setMensagem}
             multiline
@@ -115,7 +127,6 @@ export default function HomeScreen() {
           />
 
           <Text style={styles.label}>Quando quer receber?</Text>
-
           <View style={styles.dateRow}>
             <TouchableOpacity
               style={styles.dateButton}
@@ -124,7 +135,6 @@ export default function HomeScreen() {
                 {data.toLocaleDateString("pt-BR")}
               </Text>
             </TouchableOpacity>
-
             <TouchableOpacity
               style={styles.dateButton}
               onPress={() => openPicker("time")}>
@@ -138,29 +148,17 @@ export default function HomeScreen() {
           </View>
 
           {showPicker && (
-            <View>
-              <DateTimePicker
-                value={data}
-                mode={pickerMode}
-                is24Hour={true}
-                display={Platform.OS === "ios" ? "spinner" : "default"}
-                onChange={onChangeDate}
-              />
-              {Platform.OS === "ios" && (
-                <TouchableOpacity
-                  style={styles.closeButtoniOS}
-                  onPress={() => setShowPicker(false)}>
-                  <Text style={styles.closeButtonTextiOS}>Confirmar</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            <DateTimePicker
+              value={data}
+              mode={pickerMode}
+              is24Hour={true}
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={onChangeDate}
+            />
           )}
 
           <TouchableOpacity
-            style={[
-              styles.submitButton,
-              loading && styles.submitButtonDisabled,
-            ]}
+            style={styles.submitButton}
             onPress={handleEnviarLembrete}
             disabled={loading}>
             {loading ? (
@@ -176,21 +174,20 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1, backgroundColor: "#f5f7fb" },
+  containerLock: {
     flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: "#f5f7fb",
   },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: "center",
-    padding: 24,
-  },
+  scrollContainer: { flexGrow: 1, justifyContent: "center", padding: 24 },
   logo: {
     fontSize: 32,
     fontWeight: "bold",
     color: "#24292e",
     textAlign: "center",
-    marginBottom: 4,
+    marginBottom: 32,
   },
   subtitle: {
     fontSize: 14,
@@ -202,29 +199,17 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 16,
     padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
     elevation: 3,
   },
-  label: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#444",
-    marginBottom: 8,
-    marginTop: 12,
-  },
+  label: { fontSize: 15, fontWeight: "600", color: "#444", marginBottom: 8 },
   input: {
     borderWidth: 1,
     borderColor: "#e1e4e8",
     borderRadius: 10,
     padding: 12,
-    fontSize: 16,
-    color: "#24292e",
     height: 100,
-    textAlignVertical: "top",
     backgroundColor: "#fafbfc",
+    marginBottom: 16,
   },
   dateRow: {
     flexDirection: "row",
@@ -241,20 +226,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginHorizontal: 4,
   },
-  dateText: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#0366d6",
-  },
-  closeButtoniOS: {
-    alignItems: "center",
-    padding: 10,
-    marginBottom: 10,
-  },
-  closeButtonTextiOS: {
-    color: "#0366d6",
-    fontWeight: "bold",
-  },
+  dateText: { fontSize: 16, color: "#0366d6" },
   submitButton: {
     backgroundColor: "#2ea44f",
     borderRadius: 10,
@@ -262,12 +234,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 16,
   },
-  submitButtonDisabled: {
-    backgroundColor: "#94d3a2",
-  },
-  submitButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
+  submitButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
 });

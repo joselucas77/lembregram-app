@@ -28,7 +28,10 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["@react-native-community/datetimepicker"],
+    "plugins": [
+      "@react-native-community/datetimepicker",
+      "expo-local-authentication"
+    ],
     "extra": {
       "eas": {
         "projectId": "f91c755e-14d0-40bc-a32d-6c3497cc3188"
