@@ -15,6 +15,10 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import * as Haptics from "expo-haptics";
 import * as LocalAuthentication from "expo-local-authentication";
 
+/**
+ *
+ * Tela principal do meu app com formulario
+ */
 export default function HomeScreen() {
   const [mensagem, setMensagem] = useState("");
   const [data, setData] = useState(new Date());
